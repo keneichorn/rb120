@@ -10,7 +10,7 @@ class Card
   end
 
   def to_s
-    "The #{face} of #{suit}"
+    "#{face} of #{suit}"
   end
 
   def ace?
@@ -46,7 +46,7 @@ class Deck
 end
 
 module Hand
-  def show_hand
+  def hand
     puts "---- #{name}'s Hand ----"
     cards.each do |card|
       puts "=> #{card}"
@@ -97,33 +97,43 @@ end
 
 class Player < Participant
   def set_name
+    clear
     name = ''
     loop do
       puts "What's your name?"
       name = gets.chomp
       break unless name.empty?
+      clear
       puts "Sorry, you must enter something, anything really."
     end
-    self.name = name
+    self.name = name.capitalize
   end
 
-  def show_flop
-    show_hand
+  def show_hand
+    hand
+  end
+
+  private
+
+  def clear
+    system 'clear'
   end
 end
 
 class Dealer < Participant
   ROBOTS = ['R2D2', 'Hal', 'Chappie', 'Sonny', 'Number 5']
 
-  def set_name
-    self.name = ROBOTS.sample
-  end
-
-  def show_flop
+  def show_hand
     puts "---- #{name}'s Hand ----"
     puts cards.first
     puts " ?? "
     puts ''
+  end
+
+  private
+
+  def set_name
+    self.name = ROBOTS.sample
   end
 end
 
@@ -134,6 +144,29 @@ class TwentyOne
     @deck = Deck.new
     @player = Player.new
     @dealer = Dealer.new
+  end
+
+  def start
+    main_game_loop
+
+    puts "Thank you for playing Twenty-One. Goodbye!"
+  end
+
+  private
+
+  def main_game_loop
+    loop do
+      opening
+
+      results = player_results
+      if results != 1; results == 2 ? break : next end
+
+      results =  dealer_results
+      if results != 1; results == 2 ? break : next end
+
+      show_result
+      break unless play_again?
+    end
   end
 
   def reset
@@ -151,8 +184,8 @@ class TwentyOne
 
   def show_flop
     clear
-    player.show_flop
-    dealer.show_flop
+    player.show_hand
+    dealer.show_hand
   end
 
   def player_answer
@@ -165,42 +198,74 @@ class TwentyOne
     answer
   end
 
-  def hit_or_stay
+  def player_turn
     loop do
-      puts "Would you like to (h)it or (s)tay?"
+      puts "It's your turn." 
+      puts "Would you like to hit or stay?"
+      puts "Enter 'h' for hit and 's' for stay."
       answer = player_answer
-
-      if answer == 's'
-        puts "#{player.name} stays!"
-        break
-      elsif player.busted?
-        break
-      else
-        player.add_card(deck.deal_one)
-        puts "#{player.name} hits!"
-        show_flop
-        break if player.busted?
-      end
+      break if command(answer)
     end
   end
 
-  def player_turn
-    puts "#{player.name}'s turn..."
-    hit_or_stay
+  def command(input)
+    show_flop
+    if input == 's'
+      player_stays
+      return true
+    else
+      player_hits
+    end
+    player.busted? == true
+  end
+
+  def player_stays
+    puts "#{player.name} stays!"
+    press_enter
+  end
+
+  def player_hits
+    puts "#{player.name} hits!"
+    press_enter
+    player.add_card(deck.deal_one)
+    show_flop
   end
 
   def dealer_hit_or_stay
+    dealer_reveal
     loop do
+      press_enter
+      show_cards
       break if dealer.busted?
-      if dealer.total >= 17
-        puts "#{dealer.name} stays!"
-        break
-      else
-        dealer.add_card(deck.deal_one)
-        show_cards
-        puts "#{dealer.name} hits!"
-      end
+      break if dealer_move?
     end
+  end
+
+  def dealer_move?
+    if dealer.total >= 17
+      dealer_stays
+      return true
+    else
+      dealer_hits
+    end
+    false
+  end
+
+  def dealer_reveal
+    show_cards
+    puts "#{dealer.name} reveals."
+  end
+
+  def dealer_stays
+    puts "#{dealer.name} stays!"
+    press_enter
+  end
+
+  def dealer_hits
+    puts "#{dealer.name} hits!"
+    press_enter
+    dealer.add_card(deck.deal_one)
+    show_cards
   end
 
   def dealer_turn
@@ -218,11 +283,12 @@ class TwentyOne
 
   def show_cards
     clear
-    player.show_hand
-    dealer.show_hand
+    player.hand
+    dealer.hand
   end
 
   def show_result
+    show_cards
     if player.total > dealer.total
       puts "It looks like #{player.name} wins!"
     elsif player.total < dealer.total
@@ -240,7 +306,7 @@ class TwentyOne
       break if ['y', 'n'].include?(answer)
       puts "Sorry, must be 'y' or 'n'."
     end
-
+    reset
     answer == 'y'
   end
 
@@ -248,34 +314,31 @@ class TwentyOne
     system 'clear'
   end
 
-  def start
-    loop do
-      clear
-      deal_cards
-      show_flop
+  def press_enter
+    puts 'Please press enter to continue.'
+    gets
+  end
 
-      player_turn
-      if player.busted?
-        show_busted
-        break unless play_again?
-        reset
-        next
-      end
+  def player_results
+    player_turn
+    return 1 unless player.busted?
+    show_busted
+    return 3 if play_again?
+    2
+  end
 
-      dealer_turn
-      if dealer.busted?
-        show_busted
-        break unless play_again?
-        reset
-        next
-      end
+  def dealer_results
+    dealer_turn
+    return 1 unless dealer.busted?
+    show_busted
+    return 3 if play_again?
+    2
+  end
 
-      show_cards
-      show_result
-      play_again? ? reset : break
-    end
-
-    puts "Thank you for playing Twenty-One. Goodbye!"
+  def opening
+    clear
+    deal_cards
+    show_flop
   end
 end
 
