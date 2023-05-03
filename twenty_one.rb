@@ -188,16 +188,6 @@ class TwentyOne
     dealer.show_hand
   end
 
-  def player_answer
-    answer = ''
-    loop do
-      answer = gets.chomp.downcase
-      break if ['h', 's'].include?(answer)
-      puts "Sorry must enter 'h' or 's'."
-    end
-    answer
-  end
-
   def player_turn
     loop do
       puts "It's your turn." 
@@ -206,6 +196,16 @@ class TwentyOne
       answer = player_answer
       break if command(answer)
     end
+  end
+
+  def player_answer
+    answer = ''
+    loop do
+      answer = gets.chomp.downcase
+      break if ['h', 's'].include?(answer)
+      puts "Sorry must enter 'h' or 's'."
+    end
+    answer
   end
 
   def command(input)
@@ -251,6 +251,12 @@ class TwentyOne
     false
   end
 
+  def show_cards
+    clear
+    player.hand
+    dealer.hand
+  end
+
   def dealer_reveal
     show_cards
     puts "#{dealer.name} reveals."
@@ -281,10 +287,20 @@ class TwentyOne
     end
   end
 
-  def show_cards
-    clear
-    player.hand
-    dealer.hand
+  def player_results
+    player_turn
+    return 1 unless player.busted?
+    show_busted
+    return 3 if play_again?
+    2
+  end
+
+  def dealer_results
+    dealer_turn
+    return 1 unless dealer.busted?
+    show_busted
+    return 3 if play_again?
+    2
   end
 
   def show_result
@@ -310,6 +326,12 @@ class TwentyOne
     answer == 'y'
   end
 
+  def opening
+    clear
+    deal_cards
+    show_flop
+  end
+
   def clear
     system 'clear'
   end
@@ -317,28 +339,6 @@ class TwentyOne
   def press_enter
     puts 'Please press enter to continue.'
     gets
-  end
-
-  def player_results
-    player_turn
-    return 1 unless player.busted?
-    show_busted
-    return 3 if play_again?
-    2
-  end
-
-  def dealer_results
-    dealer_turn
-    return 1 unless dealer.busted?
-    show_busted
-    return 3 if play_again?
-    2
-  end
-
-  def opening
-    clear
-    deal_cards
-    show_flop
   end
 end
 
