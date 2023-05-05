@@ -123,7 +123,7 @@ class Player < Participant
     name = ''
     loop do
       puts "What's your name?"
-      name = gets.chomp
+      name = gets.strip.chomp
       break unless name.empty?
       clear
       puts "Sorry, you must enter something, anything really."
