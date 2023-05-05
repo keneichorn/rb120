@@ -1,3 +1,14 @@
+module Systemable
+  def clear
+    system 'clear'
+  end
+
+  def press_enter
+    puts "Please press enter to continue."
+    gets
+  end
+end
+
 class Card
   SUITS = ['Hearts', 'Clubs', 'Spades', 'Diamonds']
   FACE_VALUES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 'Jack', 'Queen', 'King', 'Ace']
@@ -85,13 +96,24 @@ module Hand
 end
 
 class Participant
-  include Hand
+  include Hand, Systemable
 
   attr_accessor :name, :cards
 
   def initialize
     @cards = []
     set_name
+  end
+
+  def stays
+    puts "#{name} stays!"
+    press_enter
+  end
+
+  def hits(deck)
+    puts "#{name} hits!"
+    press_enter
+    add_card(deck.deal_one)
   end
 end
 
@@ -113,10 +135,14 @@ class Player < Participant
     hand
   end
 
-  private
-
-  def clear
-    system 'clear'
+  def ask_for_h_or_s
+    answer = ''
+    loop do
+      answer = gets.chomp.downcase
+      break if ['h', 's'].include?(answer)
+      puts "Sorry must enter 'h' or 's'."
+    end
+    answer
   end
 end
 
@@ -130,6 +156,16 @@ class Dealer < Participant
     puts ''
   end
 
+  def finished?(deck)
+    if total >= 17
+      stays
+      return true
+    else
+      hits(deck)
+    end
+    false
+  end
+
   private
 
   def set_name
@@ -138,6 +174,7 @@ class Dealer < Participant
 end
 
 class TwentyOne
+  include Systemable
   attr_accessor :deck, :player, :dealer
 
   def initialize
@@ -158,21 +195,21 @@ class TwentyOne
     loop do
       opening
 
-      results = player_results
-      if results != 1; results == 2 ? break : next end
+      player_hand = player_hand_results
+      if player_hand != 1; player_hand == 2 ? break : next end
 
-      results =  dealer_results
-      if results != 1; results == 2 ? break : next end
+      dealer_hand =  dealer_hand_results
+      if dealer_hand != 1; dealer_hand == 2 ? break : next end
 
       show_result
       break unless play_again?
     end
   end
 
-  def reset
-    self.deck = Deck.new
-    player.cards = []
-    dealer.cards = []
+  def opening
+    clear
+    deal_cards
+    show_flop
   end
 
   def deal_cards
@@ -188,67 +225,68 @@ class TwentyOne
     dealer.show_hand
   end
 
-  def player_turn
-    loop do
-      puts "It's your turn." 
-      puts "Would you like to hit or stay?"
-      puts "Enter 'h' for hit and 's' for stay."
-      answer = player_answer
-      break if command(answer)
-    end
+  def reset
+    self.deck = Deck.new
+    player.cards = []
+    dealer.cards = []
   end
 
-  def player_answer
-    answer = ''
+  def player_hand_results
+    player_turn
+    return 1 unless player.busted?
+    show_busted
+    return 3 if play_again?
+    2
+  end
+
+  def player_turn
     loop do
-      answer = gets.chomp.downcase
-      break if ['h', 's'].include?(answer)
-      puts "Sorry must enter 'h' or 's'."
+      puts "It's your turn."
+      puts "Would you like to hit or stay?"
+      puts "Enter 'h' for hit and 's' for stay."
+      answer = player.ask_for_h_or_s
+      break if command(answer)
     end
-    answer
   end
 
   def command(input)
     show_flop
     if input == 's'
-      player_stays
+      player.stays
       return true
     else
-      player_hits
+      player.hits(deck)
+      show_flop
     end
     player.busted? == true
   end
 
-  def player_stays
-    puts "#{player.name} stays!"
-    press_enter
+  def dealer_hand_results
+    dealer_turn
+    return 1 unless dealer.busted?
+    show_busted
+    return 3 if play_again?
+    2
   end
 
-  def player_hits
-    puts "#{player.name} hits!"
-    press_enter
-    player.add_card(deck.deal_one)
-    show_flop
+  def dealer_turn
+    puts "#{dealer.name}'s turn..."
+    dealer_hit_or_stay
   end
 
   def dealer_hit_or_stay
     dealer_reveal
+    press_enter
     loop do
-      press_enter
       show_cards
       break if dealer.busted?
-      break if dealer_move?
+      break if dealer.finished?(deck)
     end
   end
 
-  def dealer_move?
-    if dealer.total >= 17
-      dealer_stays
-      return true
-    else
-      dealer_hits
-    end
-    false
+  def dealer_reveal
+    show_cards
+    puts "#{dealer.name} reveals."
   end
 
   def show_cards
@@ -257,50 +295,12 @@ class TwentyOne
     dealer.hand
   end
 
-  def dealer_reveal
-    show_cards
-    puts "#{dealer.name} reveals."
-  end
-
-  def dealer_stays
-    puts "#{dealer.name} stays!"
-    press_enter
-  end
-
-  def dealer_hits
-    puts "#{dealer.name} hits!"
-    press_enter
-    dealer.add_card(deck.deal_one)
-    show_cards
-  end
-
-  def dealer_turn
-    puts "#{dealer.name}'s turn..."
-    dealer_hit_or_stay
-  end
-
   def show_busted
     if player.busted?
       puts "It looks like #{player.name} busted! #{dealer.name} wins!"
     elsif dealer.busted?
       puts "It looks like #{dealer.name} busted! #{player.name} wins!"
     end
-  end
-
-  def player_results
-    player_turn
-    return 1 unless player.busted?
-    show_busted
-    return 3 if play_again?
-    2
-  end
-
-  def dealer_results
-    dealer_turn
-    return 1 unless dealer.busted?
-    show_busted
-    return 3 if play_again?
-    2
   end
 
   def show_result
@@ -324,21 +324,6 @@ class TwentyOne
     end
     reset
     answer == 'y'
-  end
-
-  def opening
-    clear
-    deal_cards
-    show_flop
-  end
-
-  def clear
-    system 'clear'
-  end
-
-  def press_enter
-    puts 'Please press enter to continue.'
-    gets
   end
 end
 
