@@ -3,9 +3,94 @@ module Systemable
     system 'clear'
   end
 
-  def press_enter
-    puts "Please press enter to continue."
-    gets
+  def wait_for_2_seconds
+    sleep(2)
+  end
+end
+
+module Displayable
+  def display_dealer_turn
+    puts "#{dealer.name}'s turn..."
+  end
+
+  def display_dealer_reveal
+    puts "#{dealer.name} reveals."
+  end
+
+  def display_player_busted
+    puts "It looks like #{player.name} busted! #{dealer.name} wins!"
+  end
+
+  def display_dealer_busted
+    puts "It looks like #{dealer.name} busted! #{player.name} wins!"
+  end
+
+  def display_player_win
+    puts "It looks like #{player.name} wins!"
+  end
+
+  def display_dealer_win
+    puts "It looks like #{dealer.name} wins!"
+  end
+
+  def display_tie
+    puts "It looks like it's a tie."
+  end
+
+  def display_wrong_h_or_s_input
+    puts "Sorry must enter 'h' or 's'."
+  end
+
+  def display_hits
+    puts "#{name} hits!"
+  end
+
+  def display_stays
+    puts "#{name} stays!"
+  end
+
+  def display_total
+    puts "=> Total: #{total}"
+    puts ''
+  end
+
+  def display_name_hand
+    puts "---- #{name}'s Hand ----"
+  end
+
+  def display_goodbye
+    puts "Thank you for playing Twenty-One. Goodbye!"
+  end
+
+  def display_y_or_n
+    puts "Sorry, must be 'y' or 'n'."
+  end
+
+  def display_enter_anything
+    puts "Sorry, you must enter something, anything really."
+  end
+
+  def display_dealer_hand
+    puts "---- #{name}'s Hand ----"
+    puts cards.first
+    puts " ?? "
+    puts ''
+  end
+end
+
+module Questionable
+  def display_whats_your_name
+    puts "What's your name?"
+  end
+
+  def display_play_again
+    puts "Would you like to play again? (y/n)"
+  end
+
+  def display_h_or_s
+    puts "It's your turn."
+    puts "Would you like to hit or stay?"
+    puts "Enter 'h' for hit and 's' for stay."
   end
 end
 
@@ -57,13 +142,13 @@ class Deck
 end
 
 module Hand
+  BUSTED_TOTAL = 21
   def hand
-    puts "---- #{name}'s Hand ----"
+    display_name_hand
     cards.each do |card|
       puts "=> #{card}"
     end
-    puts "=> Total: #{total}"
-    puts ''
+    display_total
   end
 
   def count_values(cards)
@@ -80,7 +165,7 @@ module Hand
   def total
     total = count_values(cards)
     cards.select(&:ace?).count.times do
-      break if total <= 21
+      break if total <= BUSTED_TOTAL
       total -= 10
     end
     total
@@ -91,12 +176,12 @@ module Hand
   end
 
   def busted?
-    total > 21
+    total > BUSTED_TOTAL
   end
 end
 
 class Participant
-  include Hand, Systemable
+  include Hand, Systemable, Displayable, Questionable
 
   attr_accessor :name, :cards
 
@@ -106,13 +191,13 @@ class Participant
   end
 
   def stays
-    puts "#{name} stays!"
-    press_enter
+    display_stays
+    wait_for_2_seconds
   end
 
   def hits(deck)
-    puts "#{name} hits!"
-    press_enter
+    display_hits
+    wait_for_2_seconds
     add_card(deck.deal_one)
   end
 end
@@ -122,11 +207,11 @@ class Player < Participant
     clear
     name = ''
     loop do
-      puts "What's your name?"
+      display_whats_your_name
       name = gets.strip.chomp
       break unless name.empty?
       clear
-      puts "Sorry, you must enter something, anything really."
+      display_enter_anything
     end
     self.name = name.capitalize
   end
@@ -140,30 +225,34 @@ class Player < Participant
     loop do
       answer = gets.chomp.downcase
       break if ['h', 's'].include?(answer)
-      puts "Sorry must enter 'h' or 's'."
+      display_wrong_h_or_s_input
     end
     answer
   end
 end
 
 class Dealer < Participant
+  STAYS_TOTAL = 17
   ROBOTS = ['R2D2', 'Hal', 'Chappie', 'Sonny', 'Number 5']
 
   def show_hand
-    puts "---- #{name}'s Hand ----"
-    puts cards.first
-    puts " ?? "
-    puts ''
+    display_dealer_hand
   end
 
   def finished?(deck)
-    if total >= 17
+    if total >= STAYS_TOTAL
       stays
       return true
     else
       hits(deck)
     end
     false
+  end
+
+  def hits(deck)
+    display_hits
+    wait_for_2_seconds
+    add_card(deck.deal_one)
   end
 
   private
@@ -174,7 +263,7 @@ class Dealer < Participant
 end
 
 class TwentyOne
-  include Systemable
+  include Systemable, Displayable, Questionable
   attr_accessor :deck, :player, :dealer
 
   def initialize
@@ -186,7 +275,7 @@ class TwentyOne
   def start
     main_game_loop
 
-    puts "Thank you for playing Twenty-One. Goodbye!"
+    display_goodbye
   end
 
   private
@@ -241,9 +330,7 @@ class TwentyOne
 
   def player_turn
     loop do
-      puts "It's your turn."
-      puts "Would you like to hit or stay?"
-      puts "Enter 'h' for hit and 's' for stay."
+      display_h_or_s
       answer = player.ask_for_h_or_s
       break if command(answer)
     end
@@ -270,13 +357,14 @@ class TwentyOne
   end
 
   def dealer_turn
-    puts "#{dealer.name}'s turn..."
+    display_dealer_turn
+    wait_for_2_seconds
     dealer_hit_or_stay
   end
 
   def dealer_hit_or_stay
     dealer_reveal
-    press_enter
+    wait_for_2_seconds
     loop do
       show_cards
       break if dealer.busted?
@@ -286,7 +374,7 @@ class TwentyOne
 
   def dealer_reveal
     show_cards
-    puts "#{dealer.name} reveals."
+    display_dealer_reveal
   end
 
   def show_cards
@@ -297,30 +385,30 @@ class TwentyOne
 
   def show_busted
     if player.busted?
-      puts "It looks like #{player.name} busted! #{dealer.name} wins!"
+      display_player_busted
     elsif dealer.busted?
-      puts "It looks like #{dealer.name} busted! #{player.name} wins!"
+      display_dealer_busted
     end
   end
 
   def show_result
     show_cards
     if player.total > dealer.total
-      puts "It looks like #{player.name} wins!"
+      display_player_win
     elsif player.total < dealer.total
-      puts "It looks like #{dealer.name} wins!"
+      display_dealer_win
     else
-      puts "It's a tie"
+      display_tie
     end
   end
 
   def play_again?
     answer = nil
     loop do
-      puts "Would you like to play again? (y/n)"
+      display_play_again
       answer = gets.chomp.downcase
       break if ['y', 'n'].include?(answer)
-      puts "Sorry, must be 'y' or 'n'."
+      display_y_or_n
     end
     reset
     answer == 'y'
